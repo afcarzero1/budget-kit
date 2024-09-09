@@ -9,5 +9,12 @@ extend-select = [
     "NPY",
     "PL",
     "PD",
+    "RET",
+    "INT",
+    "PTH",
+    "ERA",
+    "RSE",
+    "ISC",
+    "B"
 ]
-ignore = ["D212", "D211"]
+ignore = ["D212", "D211", "D203", "ISC001"]
