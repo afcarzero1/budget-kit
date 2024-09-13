@@ -15,6 +15,7 @@ class TransactionType(Enum):
 class RecurrenceType(Enum):
     """Recurrence type."""
 
+    DAILY = "DAILY"
     WEEKLY = "WEEKLY"
     MONTHLY = "MONTHLY"
 
@@ -35,7 +36,7 @@ class ExpectedTransaction:
 
     category: str
     initial_date: datetime.date
-    final_date: datetime.date | None
+    final_date: datetime.date
     transaction_type: TransactionType
     recurrence: RecurrenceType
     recurrence_value: int
@@ -50,6 +51,9 @@ class ExpectedTransaction:
 
         if self.value < 0:
             raise ValueError("Value cannot be negative")
+
+        if self.recurrence not in (RecurrenceType.WEEKLY, RecurrenceType.MONTHLY):
+            raise ValueError("Recurrence must be weekly or monthly")
 
     def generate_transactions(self) -> list[Transaction]:
         """

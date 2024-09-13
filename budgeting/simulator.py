@@ -1,10 +1,36 @@
+"""
+1. Expected expenses and incomes
+2. Decide what to sell
+3. Decide what to buy
+
+"""
 import datetime
+from abc import ABC, abstractmethod
 from itertools import chain, groupby
 from operator import attrgetter
 
 import pandas as pd
 
+from budgeting.assets.asset import Asset
 from budgeting.core.transactions import ExpectedTransaction, TransactionType
+
+
+    
+
+class Agent(ABC):
+    """Abstract agent interface for decision-making."""
+
+    @abstractmethod
+    def decide_sell(self, balance: float, assets: list[Asset]) -> list[bool]:
+        """
+        Make buy/sell decisions.
+
+        :param balance: The agent's current liquid money.
+        :param assets: The list of assets owned by the agent.
+        :return: A list of actions with 'keep' or 'sell' instructions.
+        """
+        pass
+    
 
 
 class Simulation:
@@ -15,7 +41,7 @@ class Simulation:
         start_date: datetime.date,
         end_date: datetime.date,
         expected_transactions: list[ExpectedTransaction],
-    ):
+    ) -> None:
         """
         Initialize the simulation.
 
@@ -28,6 +54,12 @@ class Simulation:
         self.start_date = start_date
 
     def simulate(self, start_balance: int) -> (pd.DataFrame, pd.DataFrame):
+        """
+        Run the simulation.
+
+        :param start_balance:
+        :return:
+        """
         # Generate all transactions
         all_expected_transactions = sorted(
             chain.from_iterable(
@@ -94,3 +126,6 @@ class Simulation:
         category_df = pd.DataFrame(category_data)
 
         return summary_df, category_df
+
+    def _run_agent(self):
+        pass
