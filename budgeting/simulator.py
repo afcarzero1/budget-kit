@@ -1,36 +1,49 @@
-"""
-1. Expected expenses and incomes
-2. Decide what to sell
-3. Decide what to buy
+"""Module with base class for agent and simulation."""
 
-"""
 import datetime
 from abc import ABC, abstractmethod
+from collections import defaultdict
+from datetime import timedelta
 from itertools import chain, groupby
 from operator import attrgetter
 
-import pandas as pd
 
 from budgeting.assets.asset import Asset
-from budgeting.core.transactions import ExpectedTransaction, TransactionType
+from budgeting.core.transactions import (
+    ExpectedTransaction,
+    TransactionType,
+    Transaction,
+)
 
-
-    
 
 class Agent(ABC):
     """Abstract agent interface for decision-making."""
 
     @abstractmethod
-    def decide_sell(self, balance: float, assets: list[Asset]) -> list[bool]:
+    def decide_sell(
+        self, balance: float, assets: list[Asset], simulation_day: int
+    ) -> list[bool]:
         """
         Make buy/sell decisions.
 
         :param balance: The agent's current liquid money.
         :param assets: The list of assets owned by the agent.
+        :param simulation_day: The day of the simulation.
         :return: A list of actions with 'keep' or 'sell' instructions.
         """
-        pass
-    
+
+    @abstractmethod
+    def decide_buy(
+        self, balance: float, assets: list[Asset], simulation_day: int
+    ) -> list[Asset]:
+        """
+        Make buy decisions.
+
+        :param balance: The agent's current liquid money.
+        :param assets: The list of assets owned by the agent.
+        :param simulation_day: The day of the simulation.
+        :return: A list of actions with 'keep' or 'sell' instructions.
+        """
 
 
 class Simulation:
@@ -41,6 +54,7 @@ class Simulation:
         start_date: datetime.date,
         end_date: datetime.date,
         expected_transactions: list[ExpectedTransaction],
+        agent: Agent,
     ) -> None:
         """
         Initialize the simulation.
@@ -48,17 +62,24 @@ class Simulation:
         :param start_date: Starting date of the simulation.
         :param end_date: End date of the simulation.
         :param expected_transactions: The expected transactions.
+        :param agent: The agent that operates the simulation
         """
         self.expected_transactions = expected_transactions
         self.end_date = end_date
         self.start_date = start_date
+        self.agent = agent
 
-    def simulate(self, start_balance: int) -> (pd.DataFrame, pd.DataFrame):
+        self.executed_transactions = []
+        self.balance_history = []
+        self.net_valuation_history = []
+        self.assets = []
+
+    def simulate(self, start_balance: int) -> list[Transaction]:
         """
         Run the simulation.
 
         :param start_balance:
-        :return:
+        :return: The executed transactions.
         """
         # Generate all transactions
         all_expected_transactions = sorted(
@@ -70,62 +91,134 @@ class Simulation:
         )
 
         # Initialize tracking variables
+        executed_transactions = []
         current_balance = start_balance
-        summary_data = []
-        category_data = []
 
-        # Group transactions by date using groupby
-        for date_key, date_group in groupby(
-            all_expected_transactions, key=attrgetter("date")
-        ):
-            if date_key < self.start_date or date_key > self.end_date:
-                continue  # Skip transactions outside the simulation period
+        transactions_by_date = [
+            (key, list(group))  # Convert each group (sub-iterator) to a list
+            for key, group in groupby(all_expected_transactions, key=attrgetter("date"))
+        ]
 
-            daily_income = 0
-            daily_expense = 0
-
-            # Process grouped transactions by date
-            for category_key, category_group in groupby(
-                date_group, key=attrgetter("category")
-            ):
-                category_income = 0
-                category_expense = 0
-
-                # Process each transaction in category group
-                for transaction in category_group:
-                    if transaction.transaction_type == TransactionType.INCOME:
-                        category_income += transaction.value
-                        daily_income += transaction.value
-                    elif transaction.transaction_type == TransactionType.EXPENSE:
-                        category_expense += transaction.value
-                        daily_expense += transaction.value
-
-                # Record category-specific data
-                category_data.append(
-                    {
-                        "Date": date_key,
-                        "Category": category_key,
-                        "Income": category_income,
-                        "Expense": category_expense,
-                    }
-                )
-
-            current_balance += daily_income - daily_expense
-            # Record the daily summary data
-            summary_data.append(
-                {
-                    "Date": date_key,
-                    "Balance": current_balance,
-                    "Income": daily_income,
-                    "Expense": daily_expense,
-                }
+        current_date = self.start_date
+        simulation_day = 0
+        transaction_index = 0
+        while current_date < self.end_date:
+            # Retrieve the transactions relevant
+            fixed_transactions, transaction_index = self._get_next_transactions(
+                transactions_by_date,
+                max_date=current_date,
+                current_index=transaction_index,
             )
 
-        # Convert data to DataFrames
-        summary_df = pd.DataFrame(summary_data)
-        category_df = pd.DataFrame(category_data)
+            # STEP 1: Execute the fixed transactions
+            cashflow = self._execute_transactions(fixed_transactions)
+            executed_transactions.extend(fixed_transactions)
+            current_balance += cashflow
 
-        return summary_df, category_df
+            # STEP 2: Allow agent to sell
+            sell_decisions = self.agent.decide_sell(
+                current_balance, assets=self.assets, simulation_day=simulation_day
+            )
 
-    def _run_agent(self):
-        pass
+            new_asset_set = []
+            for i, sell in enumerate(sell_decisions):
+                if sell:
+                    current_balance += self.assets[i].value
+                else:
+                    new_asset_set.append(self.assets[i])
+
+            self.assets = new_asset_set
+
+            # TODO: Add borrowing here if balance is negative!
+
+            # STEP 3: Allow agent to buy
+            bought_assets = self.agent.decide_buy(
+                current_balance, assets=self.assets, simulation_day=simulation_day
+            )
+
+            # Assertion that agent didnt magically multiply money
+            if sum(asset.value for asset in bought_assets) > current_balance:
+                raise RuntimeError("Agent attempted to buy without money")
+
+            for asset in bought_assets:
+                current_balance -= asset.value
+
+            self.assets.extend(bought_assets)
+
+            self.net_valuation_history.append(sum(asset.value for asset in self.assets))
+            # Evolve existing assets
+            for asset in self.assets:
+                asset.step()
+
+            self.balance_history.append(current_balance)
+            current_date = current_date + timedelta(days=1)
+            simulation_day += 1
+
+        return executed_transactions
+
+    def _get_next_transactions(
+        self,
+        expected_transactions: list[tuple[datetime.date, Transaction]],
+        current_index: int,
+        max_date: datetime.date,
+    ) -> tuple[list[Transaction], int]:
+        """
+        Get all transactions before the maximum date given.
+
+        :param expected_transactions: Iterable with grouped transactions.
+        :param max_date: The date until which transaction are to be given (included)
+        :return:
+        """
+        # TODO: THis function can be optimized using "tee" of itertools and iterators
+        # to loop only once. Not needed for now.
+        next_transactions = []
+        while current_index < len(expected_transactions):
+            date, transactions = expected_transactions[current_index]
+
+            if self.start_date <= date <= max_date:
+                transactions = [transaction for transaction in transactions]
+
+                next_transactions.extend(transactions)
+            elif date < self.start_date:
+                pass
+            else:
+                break
+            current_index += 1
+
+        return next_transactions, current_index
+
+    @staticmethod
+    def _get_cashflow(transactions: list[Transaction]) -> dict[str, float]:
+        """
+        Get the cashflow by category from a list of transactions.
+
+        :param transactions: Transactions
+        :return: Dictionary mapping categories to cashflow
+        """
+        category_cashflow = defaultdict(float)
+
+        for transaction in transactions:
+            if transaction.transaction_type == TransactionType.INCOME:
+                category_cashflow[transaction.category] += transaction.value
+            elif transaction.transaction_type == TransactionType.EXPENSE:
+                category_cashflow[transaction.category] -= transaction.value
+
+        return category_cashflow
+
+    @staticmethod
+    def _execute_transactions(transactions: list[Transaction]) -> float:
+        """
+        Obtain cashflow after transactions.
+
+        :param transactions: List of transactions to execute.
+        :return:
+        """
+        cashflow = 0
+
+        for transaction in transactions:
+            if transaction.transaction_type == TransactionType.INCOME:
+                cashflow += transaction.value
+            elif transaction.transaction_type == TransactionType.EXPENSE:
+                cashflow -= transaction.value
+
+        return cashflow

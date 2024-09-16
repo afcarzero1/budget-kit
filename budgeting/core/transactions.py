@@ -42,7 +42,7 @@ class ExpectedTransaction:
     recurrence_value: int
     value: float
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Ensure data is correct."""
         if self.final_date < self.initial_date:
             raise ValueError(

@@ -1,9 +1,9 @@
 import datetime
 
-import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
+from budgeting.agents.base_agent import BaseAgent
 from budgeting.core.transactions import (
     ExpectedTransaction,
     TransactionType,
@@ -55,52 +55,10 @@ def main():
                 value=1000,
             ),
         ],
+        agent=BaseAgent(),
     )
 
-    summary_df, category_df = simulation.simulate(start_balance=100_000)
-
-    plot_balance(summary_df)
-
-    print(summary_df, category_df)
-
-    # Group by month and sum the expenses
-    summary_df["Date"] = pd.to_datetime(summary_df["Date"])
-    monthly_financials = (
-        summary_df.groupby(summary_df["Date"].dt.to_period("M"))[["Income", "Expense"]]
-        .sum()
-        .reset_index()
-    )
-    monthly_financials["Date"] = monthly_financials[
-        "Date"
-    ].dt.to_timestamp()  # Convert Period to Timestamp for plotting
-    monthly_financials["Cash Flow"] = (
-        monthly_financials["Income"] - monthly_financials["Expense"]
-    )
-    plot_monthly_financials(monthly_financials)
-
-    # Ensure 'Date' is a datetime type
-    category_df["Date"] = pd.to_datetime(category_df["Date"])
-
-    # Group by month and category and sum the Expense column
-    monthly_category_expenses = (
-        category_df.groupby([category_df["Date"].dt.to_period("M"), "Category"])[
-            "Expense"
-        ]
-        .sum()
-        .reset_index()
-    )
-
-    monthly_category_expenses["Date"] = monthly_category_expenses[
-        "Date"
-    ].dt.to_timestamp()  # Convert Period to Timestamp for plotting
-    active_categories = monthly_category_expenses[
-        monthly_category_expenses["Expense"] > 0
-    ]["Category"].unique()
-    filtered_expenses = monthly_category_expenses[
-        monthly_category_expenses["Category"].isin(active_categories)
-    ]
-
-    plot_category_expenses(filtered_expenses)
+    executed_transactions = simulation.simulate(start_balance=100_000)
 
 
 def plot_balance(summary_df):

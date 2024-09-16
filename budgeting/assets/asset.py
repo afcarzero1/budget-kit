@@ -20,7 +20,7 @@ class Asset(ABC):
     def _step(self) -> None:
         """Develop one day."""
         pass
-    
+
     @abstractmethod
     def is_sellable(self) -> bool:
         """Return if the asset is sellable."""
@@ -29,7 +29,7 @@ class Asset(ABC):
     def reset(self) -> None:
         """Reset value of the asset to original value."""
         self.value = self.original_value
-        self.step_counter = 0 
+        self.step_counter = 0
 
 
 class BankAccount(Asset):
