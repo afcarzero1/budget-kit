@@ -91,7 +91,7 @@ class Simulation:
         )
 
         # Initialize tracking variables
-        executed_transactions = []
+        self.executed_transactions = []
         current_balance = start_balance
 
         transactions_by_date = [
@@ -112,7 +112,7 @@ class Simulation:
 
             # STEP 1: Execute the fixed transactions
             cashflow = self._execute_transactions(fixed_transactions)
-            executed_transactions.extend(fixed_transactions)
+            self.executed_transactions.extend(fixed_transactions)
             current_balance += cashflow
 
             # STEP 2: Allow agent to sell
@@ -154,7 +154,10 @@ class Simulation:
             current_date = current_date + timedelta(days=1)
             simulation_day += 1
 
-        return executed_transactions
+        return self.executed_transactions
+
+    def plot_fixed_transactions(self):
+        pass
 
     def _get_next_transactions(
         self,

@@ -10,6 +10,7 @@ from budgeting.core.transactions import (
     RecurrenceType,
 )
 from budgeting.simulator import Simulation
+from budgeting.visualization import FinancialVisualization
 
 
 def main():
@@ -59,6 +60,11 @@ def main():
     )
 
     executed_transactions = simulation.simulate(start_balance=100_000)
+
+    analyzer = FinancialVisualization(simulation)
+
+    fig = analyzer.plot_monthly_cashflow()
+    fig.show()
 
 
 def plot_balance(summary_df):
