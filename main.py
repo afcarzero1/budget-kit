@@ -1,13 +1,16 @@
 import datetime
 
 
-from budgeting.agents.safe_agent import SafeAgent
+from budgeting.agents.safe_agent import (
+    ConservativeSellStrategy,
+    ConservativeBuyStrategy,
+)
 from budgeting.core.transactions import (
     ExpectedTransaction,
     TransactionType,
     RecurrenceType,
 )
-from budgeting.simulator import Simulation
+from budgeting.simulator import Simulation, Agent
 from budgeting.visualization import FinancialVisualization
 
 
@@ -54,7 +57,9 @@ def main():
                 value=1000,
             ),
         ],
-        agent=SafeAgent(minimum_balance=15_000, minimum_cd_value=20_000),
+        agent=Agent(
+            ConservativeBuyStrategy(15_000, 25_000), ConservativeSellStrategy(15_000)
+        ),
     )
 
     executed_transactions = simulation.simulate(start_balance=100_000)

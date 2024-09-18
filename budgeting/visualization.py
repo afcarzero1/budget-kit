@@ -245,16 +245,17 @@ class FinancialVisualization:
 
         # Calculate the net worth by summing cash and asset valuation
         net_worth_df["net_worth"] = (
-                net_worth_df["cash_in_hand"] + net_worth_df["asset_valuation"]
+            net_worth_df["cash_in_hand"] + net_worth_df["asset_valuation"]
         )
 
         # Create a subplot with 2 rows and 1 column, shared x-axis
         fig = make_subplots(
-            rows=2, cols=1,
+            rows=2,
+            cols=1,
             shared_xaxes=True,
             row_heights=[0.7, 0.3],  # Adjust heights to give more space to the top plot
             vertical_spacing=0.1,  # Space between the two plots
-            subplot_titles=("Net Worth History", "Buy/Sell Transactions")
+            subplot_titles=("Net Worth History", "Buy/Sell Transactions"),
         )
 
         # Add the net worth history to the first (top) subplot
@@ -267,7 +268,8 @@ class FinancialVisualization:
                 line=dict(color="blue"),
                 stackgroup="one",
             ),
-            row=1, col=1
+            row=1,
+            col=1,
         )
 
         fig.add_trace(
@@ -279,7 +281,8 @@ class FinancialVisualization:
                 line=dict(color="green"),
                 stackgroup="one",
             ),
-            row=1, col=1
+            row=1,
+            col=1,
         )
 
         fig.add_trace(
@@ -290,17 +293,20 @@ class FinancialVisualization:
                 name="Total Net Worth",
                 line=dict(color="black", dash="dash"),
             ),
-            row=1, col=1
+            row=1,
+            col=1,
         )
 
         # Extract buy and sell transactions from the agent's transaction history
         buy_transactions = [
-            t for t in self.simulation.agent_transactions_history if
-            t.transaction_type == AssetTransactionType.BUY
+            t
+            for t in self.simulation.agent_transactions_history
+            if t.transaction_type == AssetTransactionType.BUY
         ]
         sell_transactions = [
-            t for t in self.simulation.agent_transactions_history if
-            t.transaction_type == AssetTransactionType.SELL
+            t
+            for t in self.simulation.agent_transactions_history
+            if t.transaction_type == AssetTransactionType.SELL
         ]
 
         # Add buy/sell markers to the second (bottom) subplot
@@ -314,7 +320,8 @@ class FinancialVisualization:
                 text=[f"Buy: {t.asset_name} for {t.value}" for t in buy_transactions],
                 hoverinfo="text",
             ),
-            row=2, col=1
+            row=2,
+            col=1,
         )
 
         fig.add_trace(
@@ -327,7 +334,8 @@ class FinancialVisualization:
                 text=[f"Sell: {t.asset_name} for {t.value}" for t in sell_transactions],
                 hoverinfo="text",
             ),
-            row=2, col=1
+            row=2,
+            col=1,
         )
 
         # Customize the layout

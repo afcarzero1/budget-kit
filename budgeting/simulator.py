@@ -13,15 +13,33 @@ from operator import attrgetter
 from budgeting.assets.asset import Asset
 from budgeting.core.transactions import (
     ExpectedTransaction,
-    Transaction, TransactionType,
+    Transaction,
+    TransactionType,
 )
 
 
-class Agent(ABC):
-    """Abstract agent interface for decision-making."""
+class BuyStrategy(ABC):
+    """Buying strategy base class."""
 
     @abstractmethod
-    def decide_sell(
+    def buy(
+        self, balance: float, assets: list[Asset], simulation_day: int
+    ) -> list[Asset]:
+        """
+        Make buy decisions.
+
+        :param balance: The agent's current liquid money.
+        :param assets: The list of assets owned by the agent.
+        :param simulation_day: The day of the simulation.
+        :return: A list of actions with 'keep' or 'sell' instructions.
+        """
+
+
+class SellStrategy(ABC):
+    """Selling strategy base class."""
+
+    @abstractmethod
+    def sell(
         self, balance: float, assets: list[Asset], simulation_day: int
     ) -> list[bool]:
         """
@@ -33,7 +51,35 @@ class Agent(ABC):
         :return: A list of actions with 'keep' or 'sell' instructions.
         """
 
-    @abstractmethod
+
+class Agent:
+    """Agent for decision-making."""
+
+    def __init__(
+        self, buying_strategy: BuyStrategy, selling_strategy: SellStrategy
+    ) -> None:
+        """
+        Initialize the agent with its strategies.
+
+        :param buying_strategy:
+        :param selling_strategy:
+        """
+        self.selling_strategy = selling_strategy
+        self.buying_strategy = buying_strategy
+
+    def decide_sell(
+        self, balance: float, assets: list[Asset], simulation_day: int
+    ) -> list[bool]:
+        """
+        Make buy/sell decisions.
+
+        :param balance: The agent's current liquid money.
+        :param assets: The list of assets owned by the agent.
+        :param simulation_day: The day of the simulation.
+        :return: A list of actions with 'keep' or 'sell' instructions.
+        """
+        return self.selling_strategy.sell(balance, assets, simulation_day)
+
     def decide_buy(
         self, balance: float, assets: list[Asset], simulation_day: int
     ) -> list[Asset]:
@@ -45,6 +91,7 @@ class Agent(ABC):
         :param simulation_day: The day of the simulation.
         :return: A list of actions with 'keep' or 'sell' instructions.
         """
+        return self.buying_strategy.buy(balance, assets, simulation_day)
 
 
 class AssetTransactionType(Enum):
@@ -100,6 +147,7 @@ class Simulation:
         :param start_balance:
         :return: The executed transactions.
         """
+        # TODO: Keep track of asset lifetime and accumulated value by the steps!
         # Generate all transactions
         all_expected_transactions = sorted(
             chain.from_iterable(
@@ -135,11 +183,14 @@ class Simulation:
             current_balance += cashflow
 
             # STEP 2: Allow agent to sell
-            current_balance += self._agent_sell(current_balance, simulation_day, current_date)
-            
-            # STEP 3: Allow agent to buy
-            current_balance -= self._agent_buy(current_balance, simulation_day, current_date)
+            current_balance += self._agent_sell(
+                current_balance, simulation_day, current_date
+            )
 
+            # STEP 3: Allow agent to buy
+            current_balance -= self._agent_buy(
+                current_balance, simulation_day, current_date
+            )
 
             # STEP 4: Record and evolve
             self.asset_valuation_history.append(
@@ -160,7 +211,7 @@ class Simulation:
     ) -> float:
         """Handle agent sell decisions."""
         cashflow = 0
-        
+
         sell_decisions = self.agent.decide_sell(
             cash_on_hand, assets=self.assets, simulation_day=simulation_day
         )
@@ -182,22 +233,23 @@ class Simulation:
                 new_asset_set.append(self.assets[i])
 
         self.assets = new_asset_set
-        
+
         return cashflow
-        
-        
-    def _agent_buy(self, cash_on_hand: float, simulation_day: int, simulation_date: datetime.date) -> float:
+
+    def _agent_buy(
+        self, cash_on_hand: float, simulation_day: int, simulation_date: datetime.date
+    ) -> float:
         """
         Handle agent buy decisions.
-        
+
         Handles the logic for buying new assets and logging it into the hisotory
-        
+
         :param cash_on_hand: The cahs on hand for the agent
         :param simulation_day: Tne day number of the simulation.
         :param simulation_date: The date of the simulation
         """
         cashflow = 0
-        
+
         bought_assets = self.agent.decide_buy(
             cash_on_hand, assets=self.assets, simulation_day=simulation_day
         )
@@ -212,17 +264,15 @@ class Simulation:
                     asset_name=asset.__class__.__name__,
                     transaction_type=AssetTransactionType.BUY,
                     value=asset.value,
-                    date=simulation_date
+                    date=simulation_date,
                 )
             )
-            
-            
+
             cashflow += asset.value
 
         self.assets.extend(bought_assets)
-        
+
         return cashflow
-        
 
     def _get_next_transactions(
         self,
