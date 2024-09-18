@@ -1,4 +1,5 @@
-from budgeting.core import RecurrenceType
+from collections.abc import Callable
+
 from budgeting.simulator import SellStrategy, BuyStrategy
 from budgeting.assets.asset import Asset, BankAccount
 
@@ -60,10 +61,40 @@ class ConservativeSellStrategy(SellStrategy):
         return sell_decisions
 
 
-class ConservativeBuyStrategy(BuyStrategy):
+class CDFactory:
+    """A credit deposit factory behaving like a bank."""
+
+    def __init__(self, cd_args: dict) -> None:
+        """Credit Deposit Factory."""
+        self.cd_args = cd_args
+
+    def __call__(self, value: float) -> BankAccount:
+        """
+        Return a bank account.
+
+        :param value: The value to open.
+        :return:
+        """
+        return BankAccount(value=value, **self.cd_args)
+
+
+class ConservativeCDBuyStrategy(BuyStrategy):
     """Conservative Buying strategy."""
 
-    def __init__(self, minimum_balance: float, minimum_investment: float):
+    def __init__(
+        self,
+        minimum_balance: float,
+        minimum_investment: float,
+        cd_factory: Callable[[float], BankAccount],
+    ) -> None:
+        """
+        Initialize the conservative strategy.
+
+        :param minimum_balance: Minimum balance to maintain.
+        :param minimum_investment: Minimum investment required to buy a CD.
+        :param cd_factory: A callable that returns a BankAccount (CD) when called with an investment amount.
+        """
+        self.cd_factory = cd_factory
         self.minimum_investment = minimum_investment
         self.minimum_balance = minimum_balance
 
@@ -74,22 +105,26 @@ class ConservativeBuyStrategy(BuyStrategy):
         Buy Credit Deposits when having enough money.
 
         :param balance: The cash in hand.
-        :param assets: The assets hold.
+        :param assets: The assets held.
         :param simulation_day: The day of the simulation.
         :return: The list of Assets bought.
         """
-        if (
-            balance - self.minimum_balance > self.minimum_investment
-            and balance > self.minimum_balance
-        ):
-            return [
-                BankAccount(
-                    balance - self.minimum_balance,
-                    interest_rate=3.5,
-                    recurrence_type=RecurrenceType.MONTHLY,
-                    only_on_recurrence=False,
-                    minimum_periods=3,
-                )
-            ]
+        investable_amount = balance - self.minimum_balance
+
+        if investable_amount >= self.minimum_investment:
+            num_parts = investable_amount // self.minimum_investment
+            remainder = investable_amount % self.minimum_investment
+
+            # Adjust the last investment to include the remainder
+            investments = [self.minimum_investment] * int(num_parts)
+
+            if remainder > 0 and len(investments) > 0:
+                investments[-1] += remainder  # Add remainder to the last part
+            elif remainder > 0:
+                # If there's no parts, invest the full amount as one CD
+                investments.append(investable_amount)
+
+            # Create assets using the cd_factory
+            return [self.cd_factory(amount) for amount in investments]
 
         return []

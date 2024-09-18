@@ -309,11 +309,27 @@ class FinancialVisualization:
             if t.transaction_type == AssetTransactionType.SELL
         ]
 
+        def add_jitter(transactions, base_y):
+            jittered_y = []
+            day_transaction_count = {}
+
+            for t in transactions:
+                day = t.date
+                # Keep track of the number of transactions for each day
+                if day in day_transaction_count:
+                    day_transaction_count[day] += 1
+                else:
+                    day_transaction_count[day] = 0
+                # Add jitter by adding 0.5 to the y-axis if multiple transactions happen on the same day
+                jittered_y.append(base_y + 0.5 * day_transaction_count[day])
+
+            return jittered_y
+
         # Add buy/sell markers to the second (bottom) subplot
         fig.add_trace(
             go.Scatter(
                 x=[t.date for t in buy_transactions],
-                y=[1] * len(buy_transactions),  # Arbitrary y=1 for buy markers
+                y=add_jitter(buy_transactions, 1),  # Jitter for buy markers
                 mode="markers",
                 name="Buys",
                 marker=dict(color="green", symbol="triangle-up", size=10),
@@ -327,7 +343,7 @@ class FinancialVisualization:
         fig.add_trace(
             go.Scatter(
                 x=[t.date for t in sell_transactions],
-                y=[-1] * len(sell_transactions),  # Arbitrary y=-1 for sell markers
+                y=add_jitter(sell_transactions, -1),  # Jitter for sell markers
                 mode="markers",
                 name="Sells",
                 marker=dict(color="red", symbol="triangle-down", size=10),

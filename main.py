@@ -3,7 +3,8 @@ import datetime
 
 from budgeting.agents.safe_agent import (
     ConservativeSellStrategy,
-    ConservativeBuyStrategy,
+    ConservativeCDBuyStrategy,
+    CDFactory,
 )
 from budgeting.core.transactions import (
     ExpectedTransaction,
@@ -58,7 +59,19 @@ def main():
             ),
         ],
         agent=Agent(
-            ConservativeBuyStrategy(15_000, 25_000), ConservativeSellStrategy(15_000)
+            ConservativeCDBuyStrategy(
+                15_000,
+                25_000,
+                cd_factory=CDFactory(
+                    cd_args={
+                        "interest_rate": 3.5,
+                        "recurrence_type": RecurrenceType.MONTHLY,
+                        "minimum_periods": 1,
+                        "only_on_recurrence": True,
+                    }
+                ),
+            ),
+            ConservativeSellStrategy(15_000),
         ),
     )
 
