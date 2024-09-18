@@ -4,13 +4,16 @@ import pandas as pd
 from plotly.graph_objs import Bar, Scatter
 
 from .core.transactions import TransactionType
-from .simulator import Simulation
+from .simulator import Simulation, AssetTransactionType
 from plotly.graph_objs._figure import Figure
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 
 class FinancialVisualization:
+    """Visualiator of a single simulation."""
+
     def __init__(self, simulation: Simulation):
         self.simulation = simulation
 
@@ -223,7 +226,7 @@ class FinancialVisualization:
 
     def plot_net_worth_history(self) -> go.Figure:
         """
-        Plot the net worth history over time, split between cash in hand and asset valuation.
+        Plot the net worth history over time with buy/sell transactions in a separate aligned graph below.
 
         :return: The Plotly figure.
         """
@@ -237,19 +240,24 @@ class FinancialVisualization:
                 ),
                 "cash_in_hand": self.simulation.cash_in_hand_history,
                 "asset_valuation": self.simulation.asset_valuation_history,
-                # Assuming this exists
             }
         )
 
         # Calculate the net worth by summing cash and asset valuation
         net_worth_df["net_worth"] = (
-            net_worth_df["cash_in_hand"] + net_worth_df["asset_valuation"]
+                net_worth_df["cash_in_hand"] + net_worth_df["asset_valuation"]
         )
 
-        # Create the figure
-        fig = go.Figure()
+        # Create a subplot with 2 rows and 1 column, shared x-axis
+        fig = make_subplots(
+            rows=2, cols=1,
+            shared_xaxes=True,
+            row_heights=[0.7, 0.3],  # Adjust heights to give more space to the top plot
+            vertical_spacing=0.1,  # Space between the two plots
+            subplot_titles=("Net Worth History", "Buy/Sell Transactions")
+        )
 
-        # Add a trace for the cash in hand
+        # Add the net worth history to the first (top) subplot
         fig.add_trace(
             go.Scatter(
                 x=net_worth_df["date"],
@@ -257,11 +265,11 @@ class FinancialVisualization:
                 mode="lines",
                 name="Cash in Hand",
                 line=dict(color="blue"),
-                stackgroup="one",  # Stacking enabled
-            )
+                stackgroup="one",
+            ),
+            row=1, col=1
         )
 
-        # Add a trace for the asset valuation
         fig.add_trace(
             go.Scatter(
                 x=net_worth_df["date"],
@@ -269,11 +277,11 @@ class FinancialVisualization:
                 mode="lines",
                 name="Asset Valuation",
                 line=dict(color="green"),
-                stackgroup="one",  # Stacking enabled
-            )
+                stackgroup="one",
+            ),
+            row=1, col=1
         )
 
-        # Add a trace for the total net worth (optional, as the stacking already shows this)
         fig.add_trace(
             go.Scatter(
                 x=net_worth_df["date"],
@@ -281,16 +289,62 @@ class FinancialVisualization:
                 mode="lines",
                 name="Total Net Worth",
                 line=dict(color="black", dash="dash"),
-            )
+            ),
+            row=1, col=1
         )
 
-        # Update layout
+        # Extract buy and sell transactions from the agent's transaction history
+        buy_transactions = [
+            t for t in self.simulation.agent_transactions_history if
+            t.transaction_type == AssetTransactionType.BUY
+        ]
+        sell_transactions = [
+            t for t in self.simulation.agent_transactions_history if
+            t.transaction_type == AssetTransactionType.SELL
+        ]
+
+        # Add buy/sell markers to the second (bottom) subplot
+        fig.add_trace(
+            go.Scatter(
+                x=[t.date for t in buy_transactions],
+                y=[1] * len(buy_transactions),  # Arbitrary y=1 for buy markers
+                mode="markers",
+                name="Buys",
+                marker=dict(color="green", symbol="triangle-up", size=10),
+                text=[f"Buy: {t.asset_name} for {t.value}" for t in buy_transactions],
+                hoverinfo="text",
+            ),
+            row=2, col=1
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=[t.date for t in sell_transactions],
+                y=[-1] * len(sell_transactions),  # Arbitrary y=-1 for sell markers
+                mode="markers",
+                name="Sells",
+                marker=dict(color="red", symbol="triangle-down", size=10),
+                text=[f"Sell: {t.asset_name} for {t.value}" for t in sell_transactions],
+                hoverinfo="text",
+            ),
+            row=2, col=1
+        )
+
+        # Customize the layout
         fig.update_layout(
-            title="Net Worth History Over Time",
-            xaxis_title="Date",
-            yaxis_title="Net Worth",
+            height=600,  # Total height of the figure
+            title_text="Net Worth and Buy/Sell Transactions Over Time",
+            showlegend=False,  # Hide the legend if not needed
             template="plotly_white",
             xaxis=dict(tickformat="%b %Y"),  # Format the x-axis as Month Year
         )
+
+        # Add y-axis labels to the subplots
+        fig.update_yaxes(title_text="Net Worth", row=1, col=1)
+        fig.update_yaxes(title_text="Transactions", row=2, col=1)
+
+        # Adjust x-axis tick formatting to match both subplots
+        fig.update_xaxes(tickformat="%b %Y", row=1, col=1)
+        fig.update_xaxes(tickformat="%b %Y", row=2, col=1)
 
         return fig

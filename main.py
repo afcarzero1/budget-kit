@@ -24,7 +24,7 @@ def main():
                 transaction_type=TransactionType.EXPENSE,
                 recurrence=RecurrenceType.MONTHLY,
                 recurrence_value=1,
-                value=10000,
+                value=10_000,
             ),
             ExpectedTransaction(
                 category="Groceries",
@@ -42,7 +42,7 @@ def main():
                 transaction_type=TransactionType.INCOME,
                 recurrence=RecurrenceType.MONTHLY,
                 recurrence_value=1,
-                value=20000,
+                value=18_000,
             ),
             ExpectedTransaction(
                 category="Fun",

@@ -79,7 +79,7 @@ class SafeAgent(Agent):
                     balance - self.minimum_balance,
                     interest_rate=3.5,
                     recurrence_type=RecurrenceType.MONTHLY,
-                    only_on_recurrence=True,
+                    only_on_recurrence=False,
                     minimum_periods=3,
                 )
             ]
