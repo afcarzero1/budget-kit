@@ -3,7 +3,9 @@
 import datetime
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import timedelta
+from enum import Enum
 from itertools import chain, groupby
 from operator import attrgetter
 
@@ -11,8 +13,7 @@ from operator import attrgetter
 from budgeting.assets.asset import Asset
 from budgeting.core.transactions import (
     ExpectedTransaction,
-    TransactionType,
-    Transaction,
+    Transaction, TransactionType,
 )
 
 
@@ -46,6 +47,23 @@ class Agent(ABC):
         """
 
 
+class AssetTransactionType(Enum):
+    """Type of asset transaction."""
+
+    BUY = "buy"
+    SELL = "sell"
+
+
+@dataclass
+class AssetTransaction:
+    """Transaction of an agent on an asset."""
+
+    date: datetime
+    asset_name: str
+    value: float
+    transaction_type: AssetTransactionType
+
+
 class Simulation:
     """Simulation of projected finances."""
 
@@ -70,8 +88,9 @@ class Simulation:
         self.agent = agent
 
         self.executed_transactions = []
-        self.balance_history = []
-        self.net_valuation_history = []
+        self.agent_transactions_history = []
+        self.cash_in_hand_history = []
+        self.asset_valuation_history = []
         self.assets = []
 
     def simulate(self, start_balance: int) -> list[Transaction]:
@@ -116,48 +135,94 @@ class Simulation:
             current_balance += cashflow
 
             # STEP 2: Allow agent to sell
-            sell_decisions = self.agent.decide_sell(
-                current_balance, assets=self.assets, simulation_day=simulation_day
-            )
-
-            new_asset_set = []
-            for i, sell in enumerate(sell_decisions):
-                if sell:
-                    current_balance += self.assets[i].value
-                else:
-                    new_asset_set.append(self.assets[i])
-
-            self.assets = new_asset_set
-
-            # TODO: Add borrowing here if balance is negative!
-
+            current_balance += self._agent_sell(current_balance, simulation_day, current_date)
+            
             # STEP 3: Allow agent to buy
-            bought_assets = self.agent.decide_buy(
-                current_balance, assets=self.assets, simulation_day=simulation_day
+            current_balance -= self._agent_buy(current_balance, simulation_day, current_date)
+
+
+            # STEP 4: Record and evolve
+            self.asset_valuation_history.append(
+                sum(asset.value for asset in self.assets)
             )
-
-            # Assertion that agent didnt magically multiply money
-            if sum(asset.value for asset in bought_assets) > current_balance:
-                raise RuntimeError("Agent attempted to buy without money")
-
-            for asset in bought_assets:
-                current_balance -= asset.value
-
-            self.assets.extend(bought_assets)
-
-            self.net_valuation_history.append(sum(asset.value for asset in self.assets))
             # Evolve existing assets
             for asset in self.assets:
                 asset.step()
 
-            self.balance_history.append(current_balance)
+            self.cash_in_hand_history.append(current_balance)
             current_date = current_date + timedelta(days=1)
             simulation_day += 1
 
         return self.executed_transactions
 
-    def plot_fixed_transactions(self):
-        pass
+    def _agent_sell(
+        self, cash_on_hand: float, simulation_day: int, simulation_date: datetime.date
+    ) -> float:
+        """Handle agent sell decisions."""
+        cashflow = 0
+        
+        sell_decisions = self.agent.decide_sell(
+            cash_on_hand, assets=self.assets, simulation_day=simulation_day
+        )
+
+        new_asset_set = []
+        for i, sell in enumerate(sell_decisions):
+            if sell:
+                self.agent_transactions_history.append(
+                    AssetTransaction(
+                        date=simulation_date,
+                        asset_name=self.assets[i].__class__.__name__,
+                        transaction_type=AssetTransactionType.SELL,
+                        value=self.assets[i].value,
+                    )
+                )
+
+                cashflow += self.assets[i].value
+            else:
+                new_asset_set.append(self.assets[i])
+
+        self.assets = new_asset_set
+        
+        return cashflow
+        
+        
+    def _agent_buy(self, cash_on_hand: float, simulation_day: int, simulation_date: datetime.date) -> float:
+        """
+        Handle agent buy decisions.
+        
+        Handles the logic for buying new assets and logging it into the hisotory
+        
+        :param cash_on_hand: The cahs on hand for the agent
+        :param simulation_day: Tne day number of the simulation.
+        :param simulation_date: The date of the simulation
+        """
+        cashflow = 0
+        
+        bought_assets = self.agent.decide_buy(
+            cash_on_hand, assets=self.assets, simulation_day=simulation_day
+        )
+
+        # Assertion that agent didnt magically multiply money
+        if sum(asset.value for asset in bought_assets) > cash_on_hand:
+            raise RuntimeError("Agent attempted to buy without enough money")
+
+        for asset in bought_assets:
+            self.agent_transactions_history.append(
+                AssetTransaction(
+                    asset_name=asset.__class__.__name__,
+                    transaction_type=AssetTransactionType.BUY,
+                    value=asset.value,
+                    date=simulation_date
+                )
+            )
+            
+            
+            cashflow += asset.value
+
+        self.assets.extend(bought_assets)
+        
+        return cashflow
+        
 
     def _get_next_transactions(
         self,
@@ -201,9 +266,9 @@ class Simulation:
         category_cashflow = defaultdict(float)
 
         for transaction in transactions:
-            if transaction.transaction_type == TransactionType.INCOME:
+            if transaction.transaction_type == AssetTransactionType.INCOME:
                 category_cashflow[transaction.category] += transaction.value
-            elif transaction.transaction_type == TransactionType.EXPENSE:
+            elif transaction.transaction_type == AssetTransactionType.EXPENSE:
                 category_cashflow[transaction.category] -= transaction.value
 
         return category_cashflow
