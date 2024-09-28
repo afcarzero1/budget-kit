@@ -112,7 +112,17 @@ class AssetTransaction:
 
 
 class Simulation:
-    """Simulation of projected finances."""
+    """
+    Simulation of projected finances.
+
+    Attributes
+    ----------
+        executed_transactions: The expected transactions that were executed
+        agent_transaction_history: Transactions executed by the agent
+
+
+
+    """
 
     def __init__(
         self,
@@ -139,6 +149,8 @@ class Simulation:
         self.cash_in_hand_history = []
         self.asset_valuation_history = []
         self.assets = []
+
+        self.sold_assets = []
 
     def simulate(self, start_balance: int) -> list[Transaction]:
         """
@@ -227,7 +239,7 @@ class Simulation:
                         value=self.assets[i].value,
                     )
                 )
-
+                self.sold_assets.append(self.assets[i])
                 cashflow += self.assets[i].value
             else:
                 new_asset_set.append(self.assets[i])
@@ -242,9 +254,9 @@ class Simulation:
         """
         Handle agent buy decisions.
 
-        Handles the logic for buying new assets and logging it into the hisotory
+        Handles the logic for buying new assets and logging it into the history.
 
-        :param cash_on_hand: The cahs on hand for the agent
+        :param cash_on_hand: The cash on hand for the agent
         :param simulation_day: Tne day number of the simulation.
         :param simulation_date: The date of the simulation
         """

@@ -78,18 +78,19 @@ class BankAccount(Asset):
 
     def _is_withdrawable_at_recurrence(self) -> bool:
         """Check if the current time aligns with the recurrence period (e.g., end of month or week)."""
+        # The following methods show a trick for allowing to sell the asset after the
+        # previous recurrence period expired.
         if self.recurrence_type == RecurrenceType.DAILY:
             return self.num_periods % self.minimum_periods == 0
         if self.recurrence_type == RecurrenceType.WEEKLY:
             return (
-                self.step_counter % 7 == 0
+                (self.step_counter - 1) % 7 == 0  # Day before was recurrence
                 and self.num_periods % self.minimum_periods == 0
             )
         if self.recurrence_type == RecurrenceType.MONTHLY:
             return (
-                self.step_counter % 30 == 0
-                and self.num_periods % self.minimum_periods == 0
-            )
+                self.step_counter - 1
+            ) % 30 == 0 and self.num_periods % self.minimum_periods == 0
         return False
 
     def apply_interest(self, periods: int) -> None:

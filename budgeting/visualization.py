@@ -14,7 +14,8 @@ from plotly.subplots import make_subplots
 class FinancialVisualization:
     """Visualiator of a single simulation."""
 
-    def __init__(self, simulation: Simulation):
+    def __init__(self, simulation: Simulation) -> None:
+        """Initialize the visualizer."""
         self.simulation = simulation
 
     def plot_monthly_cashflow(self) -> Figure:
@@ -23,6 +24,26 @@ class FinancialVisualization:
 
         :return: The plotly figure.
         """
+        # Check if there are any executed transactions
+        if not self.simulation.executed_transactions:
+            # Return an empty figure with a message when no transactions are available
+            fig = Figure()
+            fig.update_layout(
+                title="Monthly Cash Flow Analysis",
+                xaxis_title="Month",
+                yaxis_title="Amount",
+                annotations=[
+                    {
+                        "text": "No transactions were executed.",
+                        "xref": "paper",
+                        "yref": "paper",
+                        "showarrow": False,
+                        "font": {"size": 20},
+                    }
+                ],
+                template="plotly_white",
+            )
+            return fig
         # Creating DataFrame from transactions
         executed_transactions_df = pd.DataFrame(
             [

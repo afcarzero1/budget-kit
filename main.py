@@ -41,12 +41,12 @@ def main():
             ),
             ExpectedTransaction(
                 category="Salary",
-                initial_date=datetime.date(2024, 10, 1),
-                final_date=datetime.date(2025, 10, 1),
+                initial_date=datetime.date(2024, 10, 2),
+                final_date=datetime.date(2025, 10, 2),
                 transaction_type=TransactionType.INCOME,
                 recurrence=RecurrenceType.MONTHLY,
                 recurrence_value=1,
-                value=18_000,
+                value=21_000,
             ),
             ExpectedTransaction(
                 category="Fun",
@@ -60,7 +60,7 @@ def main():
         ],
         agent=Agent(
             ConservativeCDBuyStrategy(
-                15_000,
+                30_000,
                 25_000,
                 cd_factory=CDFactory(
                     cd_args={
@@ -71,11 +71,11 @@ def main():
                     }
                 ),
             ),
-            ConservativeSellStrategy(15_000),
+            ConservativeSellStrategy(10_000),
         ),
     )
-
-    executed_transactions = simulation.simulate(start_balance=100_000)
+    start_balance = 150_000
+    executed_transactions = simulation.simulate(start_balance=start_balance)
 
     analyzer = FinancialVisualization(simulation)
 
@@ -93,6 +93,22 @@ def main():
 
     fig = analyzer.plot_net_worth_history()
     fig.show()
+
+    final_valuation = (
+        sum(asset.value for asset in simulation.assets)
+        + simulation.cash_in_hand_history[-1]
+    )
+    no_agent_final_valuation = start_balance + sum(
+        -transaction.value
+        if transaction.transaction_type == TransactionType.EXPENSE
+        else transaction.value
+        for transaction in executed_transactions
+    )
+
+    print(final_valuation)
+    print(no_agent_final_valuation)
+
+    print(final_valuation - no_agent_final_valuation)
 
 
 if __name__ == "__main__":
