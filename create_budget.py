@@ -104,6 +104,7 @@ def transaction_component(index: int) -> dict:
 
 @st.cache_data
 def run_simulation(expected_transactions: list[ExpectedTransaction]) -> Simulation:
+    """Run the simulation given expected transactions."""
     simulation = Simulation(
         start_date=datetime.date(2024, 10, 1),
         end_date=datetime.date(2025, 10, 1),
@@ -167,6 +168,7 @@ with cols[0]:
         st.rerun()
 
 
+# If an error is present in the input the simulation must NOT run.
 if not st.session_state.continue_simulation:
     st.stop()
 
@@ -181,3 +183,7 @@ analyzer = FinancialVisualization(simulation)
 
 with cols[1]:
     st.plotly_chart(analyzer.plot_monthly_cashflow())
+    st.plotly_chart(analyzer.plot_monthly_expenses_breakdown())
+    st.plotly_chart(analyzer.plot_cash_in_hand_history())
+    st.plotly_chart(analyzer.plot_asset_valuation_history())
+    st.plotly_chart(analyzer.plot_net_worth_history())
