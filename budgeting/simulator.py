@@ -267,7 +267,7 @@ class Simulation:
         )
 
         # Assertion that agent didnt magically multiply money
-        if sum(asset.value for asset in bought_assets) > cash_on_hand:
+        if len(bought_assets) > 0 and sum(asset.value for asset in bought_assets) > cash_on_hand:
             raise RuntimeError("Agent attempted to buy without enough money")
 
         for asset in bought_assets:
