@@ -17,6 +17,7 @@ class TransactionType(Enum):
 class RecurrenceType(Enum):
     """Recurrence type."""
 
+    NONE = "NONE"
     DAILY = "DAILY"
     WEEKLY = "WEEKLY"
     MONTHLY = "MONTHLY"
@@ -47,18 +48,16 @@ class ExpectedTransaction:
     def validate(self) -> str | None:
         """Validate whether data is correct."""
         if self.final_date < self.initial_date:
-            return (
-                f"Final date {self.final_date} is before initial date {self.initial_date}."
-            )
+            return f"Final date {self.final_date} is before initial date {self.initial_date}."
 
         if self.value < 0:
             return "Value cannot be negative"
 
-        if self.recurrence not in (RecurrenceType.WEEKLY, RecurrenceType.MONTHLY):
-            return "Recurrence must be weekly or monthly"
+        # if self.recurrence not in (RecurrenceType.WEEKLY, RecurrenceType.MONTHLY):
+        #    return "Recurrence must be weekly or monthly"
 
         return None
-    
+
     def generate_transactions(self) -> list[Transaction]:
         """
         Generate all the expected transactions.
@@ -77,11 +76,19 @@ class ExpectedTransaction:
                 )
             )
 
-            current_date += (
-                relativedelta(weeks=self.recurrence_value)
-                if self.recurrence == RecurrenceType.WEEKLY
-                else relativedelta(months=self.recurrence_value)
-            )
+            match self.recurrence:
+                case RecurrenceType.NONE:
+                    break
+                case RecurrenceType.WEEKLY:
+                    delta = relativedelta(weeks=self.recurrence_value)
+                case RecurrenceType.MONTHLY:
+                    delta = relativedelta(months=self.recurrence_value)
+                case RecurrenceType.DAILY:
+                    delta = relativedelta(days=self.recurrence_value)
+                case _:
+                    raise RuntimeError(f"Unhandled recurrency type: {self.recurrence}")
+
+            current_date += delta
 
         return transactions
 

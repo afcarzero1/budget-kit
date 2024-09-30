@@ -12,11 +12,56 @@ from plotly.subplots import make_subplots
 
 
 class FinancialVisualization:
-    """Visualiator of a single simulation."""
+    """Visualizer of a single simulation."""
 
     def __init__(self, simulation: Simulation) -> None:
         """Initialize the visualizer."""
         self.simulation = simulation
+
+    def plot_total_expenses_breakdown(self) -> Figure:
+        """
+        Plot the total expenses breakdown by category.
+
+        :return: The plotly figure.
+        """
+        # Filter only expense transactions
+        expenses = [
+            t
+            for t in self.simulation.executed_transactions
+            if t.transaction_type == TransactionType.EXPENSE
+        ]
+
+        # Create a DataFrame for the filtered expenses
+        df = pd.DataFrame(
+            {
+                "category": [t.category for t in expenses],
+                "value": [t.value for t in expenses],
+            }
+        )
+
+        # Generate a dynamic color palette based on categories
+        color_palette = self._get_dynamic_color_palette(df["category"].tolist())
+
+        # Group by category and sum the values
+        total_expenses_by_category = df.groupby("category")["value"].sum().reset_index()
+
+        # Plot using Plotly Pie chart for the total expenses breakdown by category
+        fig = px.pie(
+            total_expenses_by_category,
+            names="category",
+            values="value",
+            title="Total Expenses Breakdown by Category",
+            color="category",
+            color_discrete_map=color_palette,  # Apply dynamic color palette
+        )
+
+        fig.update_layout(
+            title={"x": 0.5, "xanchor": "center"},  # Center the title
+            font=dict(size=14),
+            plot_bgcolor="white",  # Set background to white
+        )
+
+        return fig
 
     def plot_monthly_cashflow(self) -> Figure:
         """
@@ -138,6 +183,9 @@ class FinancialVisualization:
             }
         )
 
+        # Generate a dynamic color palette based on categories
+        color_palette = self._get_dynamic_color_palette(df["category"].tolist())
+
         # Add a column for year-month
         df["year_month"] = df["date"].apply(lambda x: x.strftime("%Y-%m"))
 
@@ -154,6 +202,7 @@ class FinancialVisualization:
             color="category",
             barmode="group",
             title="Monthly Breakdown of Expenses by Category",
+            color_discrete_map=color_palette,  # Apply dynamic color palette
         )
 
         fig.update_layout(
@@ -393,3 +442,12 @@ class FinancialVisualization:
         fig.update_xaxes(tickformat="%b %Y", row=2, col=1)
 
         return fig
+
+    @staticmethod
+    def _get_dynamic_color_palette(categories: list) -> dict:
+        """Generate a consistent color palette based on unique categories."""
+        unique_categories = list(set(categories))
+        color_sequence = px.colors.qualitative.Plotly
+        return {category: color_sequence[i % len(color_sequence)] for
+                         i, category in enumerate(unique_categories)}
+

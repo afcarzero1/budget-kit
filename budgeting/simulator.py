@@ -355,3 +355,29 @@ class Simulation:
                 cashflow -= transaction.value
 
         return cashflow
+
+    def summary(self) -> dict[str, float]:
+        """
+        Compute and return the summary of executed transactions.
+
+        :return: A dictionary with total income, total expenses, and net cash flow.
+        """
+        total_income = 0
+        total_expenses = 0
+
+        # Compute total income and total expenses
+        for transaction in self.executed_transactions:
+            if transaction.transaction_type == TransactionType.INCOME:
+                total_income += transaction.value
+            elif transaction.transaction_type == TransactionType.EXPENSE:
+                total_expenses += transaction.value
+
+        # Compute net cash flow (income - expenses)
+        net_cash_flow = total_income - total_expenses
+
+        # Return the summary as a dictionary
+        return {
+            "total_income": total_income,
+            "total_expenses": total_expenses,
+            "net_cash_flow": net_cash_flow,
+        }
