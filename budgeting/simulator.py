@@ -152,11 +152,11 @@ class Simulation:
 
         self.sold_assets = []
 
-    def simulate(self, start_balance: int) -> list[Transaction]:
+    def simulate(self, start_balance: float) -> list[Transaction]:
         """
         Run the simulation.
 
-        :param start_balance:
+        :param start_balance: Initial cash on hand for the simulations.
         :return: The executed transactions.
         """
         # TODO: Keep track of asset lifetime and accumulated value by the steps!

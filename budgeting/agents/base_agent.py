@@ -10,8 +10,8 @@ class NoSellStrategy(SellStrategy):
     ) -> list[bool]:
         """
         Not sell any asset.
-        
-        :param balance: Current cash on hand 
+
+        :param balance: Current cash on hand
         :param assets: Current assets.
         :param simulation_day: Current simulation day.
         :return: Selling decisions
@@ -21,16 +21,16 @@ class NoSellStrategy(SellStrategy):
 
 class NoBuyStrategy(BuyStrategy):
     """Simple strategy of no buying."""
-    
+
     def buy(
         self, balance: float, assets: list[Asset], simulation_day: int
     ) -> list[Asset]:
         """
         Not buying any asset.
-        
-        :param balance: Current cash on hand 
+
+        :param balance: Current cash on hand
         :param assets: Current assets.
         :param simulation_day: Current simulation day.
-        :return: Buying decisions. 
+        :return: Buying decisions.
         """
         return []

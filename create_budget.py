@@ -18,11 +18,7 @@ from budgeting.core.transactions import (
 from budgeting.simulator import Simulation, Agent
 from budgeting.visualization import FinancialVisualization
 
-st.set_page_config(layout="wide")
-st.session_state.continue_simulation = True
 
-
-# Function for creating a reusable transaction input component
 def transaction_component(index: int) -> dict:
     """Reusable function for transaction input."""
     # Retrieve transaction from session state
@@ -103,11 +99,24 @@ def transaction_component(index: int) -> dict:
 
 
 @st.cache_data
-def run_simulation(expected_transactions: list[ExpectedTransaction]) -> Simulation:
-    """Run the simulation given expected transactions."""
+def run_simulation(
+    expected_transactions: list[ExpectedTransaction],
+    start_date: datetime.date,
+    end_date: datetime.date,
+    initial_balance: float,
+) -> Simulation:
+    """
+    Run the simulation given expected transactions.
+    
+    :param expected_transactions: Expected transactions.
+    :param start_date: Start date of simulation.
+    :param end_date: End date of simulation.
+    :param initial_balance: The balance of the start.
+    :return: 
+    """
     simulation = Simulation(
-        start_date=datetime.date(2024, 10, 1),
-        end_date=datetime.date(2025, 10, 1),
+        start_date=start_date,
+        end_date=end_date,
         expected_transactions=expected_transactions,
         agent=Agent(
             ConservativeCDBuyStrategy(
@@ -125,12 +134,18 @@ def run_simulation(expected_transactions: list[ExpectedTransaction]) -> Simulati
             ConservativeSellStrategy(10_000),
         ),
     )
-
-    start_balance = 150_000
-    simulation.simulate(start_balance=start_balance)
+    simulation.simulate(start_balance=initial_balance)
 
     return simulation
 
+
+st.set_page_config(layout="wide")
+st.session_state.continue_simulation = True
+
+st.sidebar.header("Simulation Configuration")
+start_date = st.sidebar.date_input("Start Date", datetime.date(2024, 10, 1))
+end_date = st.sidebar.date_input("End Date", datetime.date(2025, 10, 1))
+initial_balance = st.sidebar.number_input("Initial Balance", min_value=0, value=150_000)
 
 # Main app
 st.title("Budget Creator")
@@ -176,7 +191,10 @@ simulation = run_simulation(
     [
         ExpectedTransaction(**information)
         for information in st.session_state.transactions
-    ]
+    ],
+    start_date,
+    end_date,
+    initial_balance,
 )
 analyzer = FinancialVisualization(simulation)
 
