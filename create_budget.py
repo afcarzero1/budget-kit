@@ -3,6 +3,7 @@
 import datetime
 from pprint import pprint
 
+import pandas as pd
 import streamlit as st
 
 from budgeting.agents.safe_agent import (
@@ -26,75 +27,63 @@ def transaction_component(index: int) -> dict:
 
     with st.expander(f"Transaction {index + 1}"):
         # Text input for category, initial value from session state
-        transaction["category"] = st.text_input(
+        transaction.category = st.text_input(
             f"Category {index + 1}",
-            value=transaction["category"],
+            value=transaction.category,
             key=f"category_{index}",
         )
 
         # Date input for initial and final date
-        transaction["initial_date"] = st.date_input(
+        transaction.initial_date = st.date_input(
             f"Initial Date {index + 1}",
-            value=transaction["initial_date"],
+            value=transaction.initial_date,
             key=f"initial_date_{index}",
         )
 
-        transaction["final_date"] = st.date_input(
+        transaction.final_date = st.date_input(
             f"Final Date {index + 1}",
-            value=transaction["final_date"],
+            value=transaction.final_date,
             key=f"final_date_{index}",
         )
 
         # Dropdowns for transaction type and recurrence
-        transaction["transaction_type"] = st.selectbox(
+        transaction.transaction_type = st.selectbox(
             f"Transaction Type {index + 1}",
             list(TransactionType),
-            index=list(TransactionType).index(transaction["transaction_type"]),
+            index=list(TransactionType).index(transaction.transaction_type),
             key=f"type_{index}",
         )
 
-        transaction["recurrence"] = st.selectbox(
+        transaction.recurrence = st.selectbox(
             f"Recurrence {index + 1}",
             list(RecurrenceType),
-            index=list(RecurrenceType).index(transaction["recurrence"]),
+            index=list(RecurrenceType).index(transaction.recurrence),
             key=f"recurrence_{index}",
         )
 
         # Number inputs for recurrence value and value
-        transaction["recurrence_value"] = st.number_input(
+        transaction.recurrence_value = st.number_input(
             f"Recurrence Value {index + 1}",
             min_value=1,
-            value=transaction["recurrence_value"],
+            value=transaction.recurrence_value,
             key=f"recurrence_value_{index}",
         )
 
-        transaction["value"] = st.number_input(
+        transaction.value = st.number_input(
             f"Value {index + 1}",
             min_value=0.0,
-            value=transaction["value"],
+            value=transaction.value,
             key=f"value_{index}",
         )
-
-        try:
-            _ = ExpectedTransaction(
-                category=transaction["category"],
-                initial_date=transaction["initial_date"],
-                final_date=transaction["final_date"],
-                transaction_type=transaction["transaction_type"],
-                recurrence=transaction["recurrence"],
-                recurrence_value=transaction["recurrence_value"],
-                value=transaction["value"],
-            )
-            # Display success message (optional)
-            st.success(f"Transaction {index + 1} is valid.")
-
-        except Exception as e:
-            # Catch the validation error and display it using Streamlit
-            validation_error = str(e)
-            st.error(f"Error in Transaction {index + 1}: {validation_error}")
+        
+        if (err := transaction.validate()) is not None:
+            st.error(f"Error in Transaction {index + 1}: {err}")
             st.session_state.continue_simulation = False
 
-        # Return updated transaction data
+        if st.button(f"Delete Transaction {index + 1}", key=f"delete_{index}"):
+            del st.session_state.transactions[index]
+            st.rerun()
+
         return transaction
 
 
@@ -107,12 +96,12 @@ def run_simulation(
 ) -> Simulation:
     """
     Run the simulation given expected transactions.
-    
+
     :param expected_transactions: Expected transactions.
     :param start_date: Start date of simulation.
     :param end_date: End date of simulation.
     :param initial_balance: The balance of the start.
-    :return: 
+    :return:
     """
     simulation = Simulation(
         start_date=start_date,
@@ -155,6 +144,10 @@ cols = st.columns([1, 2])
 
 if "transactions" not in st.session_state:
     st.session_state.transactions = []
+    
+    
+if 'processed_file' not in st.session_state:
+    st.session_state.processed_file = None
 
 print("New script run")
 pprint(st.session_state.transactions)
@@ -162,7 +155,10 @@ pprint(st.session_state.transactions)
 
 with cols[0]:
     # Display existing transactions
-    st.write("### Existing Transactions")
+    subcol = st.columns(2)
+    with subcol[0]:
+        st.write("### Expected Transactions")
+
     for idx in range(len(st.session_state.transactions)):
         st.session_state.transactions[idx] = transaction_component(idx)
 
@@ -170,28 +166,52 @@ with cols[0]:
     if st.button("Add Expected Transaction"):
         # Create a new transaction with default values and add it to session state
         st.session_state.transactions.append(
-            {
-                "category": "New Category",
-                "initial_date": datetime.date.today(),
-                "final_date": datetime.date.today(),
-                "transaction_type": TransactionType.EXPENSE,
-                "recurrence": RecurrenceType.MONTHLY,
-                "recurrence_value": 1,
-                "value": 0.0,
-            }
+            ExpectedTransaction(
+                category="New Category",
+                initial_date=datetime.date.today(),
+                final_date=datetime.date.today(),
+                transaction_type=TransactionType.EXPENSE,
+                recurrence=RecurrenceType.MONTHLY,
+                recurrence_value=1,
+                value=0.0
+            )
         )
         st.rerun()
 
+    session_transactions = st.session_state.transactions
+
+    with subcol[1]:
+        if st.session_state.processed_file is None:
+            uploaded_file = st.file_uploader("Upload CSV", type=["csv"])
+            if uploaded_file:
+                transactions = ExpectedTransaction.df2transactions(
+                    pd.read_csv(uploaded_file))
+                st.success(f"Successfully imported {len(transactions)} transactions.")
+                st.session_state.transactions.extend(transactions)
+                st.session_state.processed_file = True
+                st.rerun()
+        elif st.button("Upload a New File"):
+            st.session_state.processed_file = None
+            st.rerun()
+            
+        st.download_button(
+            "Download Transactions",
+            data=ExpectedTransaction.transactions2df(
+                session_transactions
+            ).to_csv(index=False),
+            file_name="expected_transactions.csv",
+            mime="text/csv",
+        )
+        
+        
+            
 
 # If an error is present in the input the simulation must NOT run.
 if not st.session_state.continue_simulation:
     st.stop()
 
 simulation = run_simulation(
-    [
-        ExpectedTransaction(**information)
-        for information in st.session_state.transactions
-    ],
+    session_transactions,
     start_date,
     end_date,
     initial_balance,

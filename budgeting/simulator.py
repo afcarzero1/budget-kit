@@ -118,7 +118,7 @@ class Simulation:
     Attributes
     ----------
         executed_transactions: The expected transactions that were executed
-        agent_transaction_history: Transactions executed by the agent
+        agent_transactions_history: Transactions executed by the agent
 
 
 
