@@ -448,6 +448,7 @@ class FinancialVisualization:
         """Generate a consistent color palette based on unique categories."""
         unique_categories = list(set(categories))
         color_sequence = px.colors.qualitative.Plotly
-        return {category: color_sequence[i % len(color_sequence)] for
-                         i, category in enumerate(unique_categories)}
-
+        return {
+            category: color_sequence[i % len(color_sequence)]
+            for i, category in enumerate(unique_categories)
+        }

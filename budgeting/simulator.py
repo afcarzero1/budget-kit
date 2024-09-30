@@ -388,34 +388,38 @@ class Simulation:
 
         :return: A dictionary containing the average monthly expenditure, maximum monthly expenditure, and average monthly cash flow.
         """
-        # Create a dictionary to store monthly income and expenses
+        if not self.executed_transactions:
+            return {
+                "average_monthly_expenditure": 0.0,
+                "max_monthly_expenditure": 0.0,
+                "average_monthly_cashflow": 0.0,
+            }
         monthly_income = defaultdict(float)
         monthly_expenses = defaultdict(float)
 
-        # Iterate over all executed transactions and aggregate them by month
         for transaction in self.executed_transactions:
             transaction_month = transaction.date.strftime(
-                "%Y-%m")  # Group by year-month
+                "%Y-%m"
+            ) 
 
             if transaction.transaction_type == TransactionType.INCOME:
                 monthly_income[transaction_month] += transaction.value
             elif transaction.transaction_type == TransactionType.EXPENSE:
                 monthly_expenses[transaction_month] += transaction.value
 
-        # Compute monthly cash flow (income - expenses) for each month
         monthly_cashflow = {
             month: monthly_income[month] - monthly_expenses[month]
             for month in monthly_income.keys() | monthly_expenses.keys()
         }
 
-        # Calculate average and maximum monthly expenditures
         average_monthly_expenses = sum(monthly_expenses.values()) / len(
-            monthly_expenses)
+            monthly_expenses
+        )
         max_monthly_expenses = max(monthly_expenses.values()) if monthly_expenses else 0
 
-        # Calculate average monthly cashflow
         average_monthly_cashflow = sum(monthly_cashflow.values()) / len(
-            monthly_cashflow)
+            monthly_cashflow
+        )
 
         return {
             "average_monthly_expenditure": average_monthly_expenses,

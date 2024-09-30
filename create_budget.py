@@ -156,7 +156,7 @@ with cols[1]:
         This includes the total income, total expenses, and net cash flow over the simulation period.
         """
     )
-    
+
     simulation_summary = simulation.summary()
 
     col1, col2, col3 = st.columns(3)
@@ -184,7 +184,6 @@ with cols[1]:
     st.plotly_chart(analyzer.plot_net_worth_history())
 
 
-
 with cols[0]:
     monthly_summary = simulation.monthly_summary()
 
@@ -193,19 +192,19 @@ with cols[0]:
     with col1:
         st.metric(
             label="Average Monthly Expenditure",
-            value=f"{monthly_summary['average_monthly_expenditure']:,.2f}"
+            value=f"{monthly_summary['average_monthly_expenditure']:,.2f}",
         )
-        
+
     with col2:
         st.metric(
             label="Max Monthly Expenditure",
-            value=f"{monthly_summary['max_monthly_expenditure']:,.2f}"
+            value=f"{monthly_summary['max_monthly_expenditure']:,.2f}",
         )
 
     with col3:
         st.metric(
             label="Average Monthly Cashflow",
-            value=f"{monthly_summary['average_monthly_cashflow']:,.2f}"
+            value=f"{monthly_summary['average_monthly_cashflow']:,.2f}",
         )
-    
+
     st.plotly_chart(analyzer.plot_total_expenses_breakdown())
