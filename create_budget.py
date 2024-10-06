@@ -1,6 +1,7 @@
 """Streamlit page providing UI for budget creation."""
 
 import datetime
+from enum import Enum
 from pprint import pprint
 
 import pandas as pd
@@ -12,18 +13,29 @@ from budgeting.core.transactions import (
     RecurrenceType,
     ExpectedTransaction,
 )
-from budgeting.simulator import Simulation, Agent
+from budgeting.simulator import Simulation, Agent, BuyStrategy
 from budgeting.visualization import FinancialVisualization
+from components.strategy_components import get_conservative_cd_buy_strategy
 
 from components.transaction_component import transaction_component
 
 
-@st.cache_data
+class BuyStrategyEnum(Enum):
+    CONSERVATIVE_CD = "Conservative Buy"
+    NO_BUY = "No Buy"
+
+
+class SellStrategyEnum(Enum):
+    CONSERVATIVE_CD = "Conservative Sell"
+    NO_SELL = "No Sell"
+
+
 def run_simulation(
     expected_transactions: list[ExpectedTransaction],
     start_date: datetime.date,
     end_date: datetime.date,
     initial_balance: float,
+    buy_strategy: BuyStrategy,
 ) -> Simulation:
     """
     Run the simulation given expected transactions.
@@ -39,7 +51,7 @@ def run_simulation(
         end_date=end_date,
         expected_transactions=expected_transactions,
         agent=Agent(
-            NoBuyStrategy(),
+            buy_strategy,
             NoSellStrategy(),
         ),
     )
@@ -56,6 +68,20 @@ start_date = st.sidebar.date_input("Start Date", datetime.date(2024, 10, 1))
 end_date = st.sidebar.date_input("End Date", datetime.date(2025, 10, 1))
 initial_balance = st.sidebar.number_input("Initial Balance", min_value=0, value=150_000)
 
+# Buy strategy
+st.sidebar.subheader("Buy Strategy Configuration")
+buy_strategy_option = st.sidebar.selectbox(
+    "Select Buy Strategy", [strategy.value for strategy in BuyStrategyEnum]
+)
+
+if buy_strategy_option == BuyStrategyEnum.CONSERVATIVE_CD.value:
+    buy_strategy = get_conservative_cd_buy_strategy()
+elif buy_strategy_option == BuyStrategyEnum.NO_BUY.value:
+    buy_strategy = NoBuyStrategy()
+else:
+    st.error("A buy strategy must be selected")
+
+
 # Main app
 st.title("Budget Creator")
 
@@ -67,7 +93,6 @@ st.write(
     to view your projected finances.
     """
 )
-
 
 cols = st.columns([1, 2])
 
@@ -140,11 +165,16 @@ if not st.session_state.continue_simulation:
     st.stop()
 
 simulation = run_simulation(
-    st.session_state.transactions,
-    start_date,
-    end_date,
-    initial_balance,
+    st.session_state.transactions, start_date, end_date, initial_balance, buy_strategy
 )
+
+baseline = run_simulation(
+st.session_state.transactions, start_date, end_date, initial_balance, NoBuyStrategy()
+)
+
+
+
+
 analyzer = FinancialVisualization(simulation)
 
 

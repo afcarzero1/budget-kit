@@ -398,9 +398,7 @@ class Simulation:
         monthly_expenses = defaultdict(float)
 
         for transaction in self.executed_transactions:
-            transaction_month = transaction.date.strftime(
-                "%Y-%m"
-            ) 
+            transaction_month = transaction.date.strftime("%Y-%m")
 
             if transaction.transaction_type == TransactionType.INCOME:
                 monthly_income[transaction_month] += transaction.value
